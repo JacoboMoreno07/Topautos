@@ -1,0 +1,2464 @@
+<?php
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (!empty($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    session_start();
+}
+
+$csp = "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.juicer.io; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-src https://www.google.com; base-uri 'self'; form-action 'self'; upgrade-insecure-requests";
+header("Content-Security-Policy: {$csp}");
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+header('X-XSS-Protection: 0');
+if ($isHttps) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+}
+
+if (!empty($_POST['logout'])) {
+    unset($_SESSION['portal_user']);
+    $logoutToast = true;
+}
+
+$pdo = null;
+$configPath = __DIR__ . '/config.php';
+if (file_exists($configPath)) {
+    require_once $configPath;
+}
+
+$fallbackCars = [
+    [
+        'brand' => 'KIA',
+        'model' => 'Sportage LX',
+        'price' => '$81.900.000',
+        'tagline' => 'SUV lista para la aventura urbana',
+        'category' => 'suv',
+        'year' => '2021',
+        'km' => '38.200 km',
+        'transmission' => 'Automatica',
+        'image' => 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Version LX con techo panoramico, mantenimiento al dia y historial certificado. Ideal para ciudad y carretera.'
+    ],
+    [
+        'brand' => 'Toyota',
+        'model' => '4Runner SR5',
+        'price' => '$165.300.000',
+        'tagline' => 'Potencia y confiabilidad japonesa',
+        'category' => 'suv',
+        'year' => '2020',
+        'km' => '44.900 km',
+        'transmission' => 'Automatica 4x4',
+        'image' => 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Blindaje ligero opcional, mantenimiento en concesionario y kit off-road incluido.'
+    ],
+    [
+        'brand' => 'Mazda',
+        'model' => '3 Grand Touring',
+        'price' => '$130.000.000',
+        'tagline' => 'Edicion Carbon attitude',
+        'category' => 'sedan',
+        'year' => '2022',
+        'km' => '18.700 km',
+        'transmission' => 'Secuencial',
+        'image' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Interiores en suede, sonido Bose y paquete i-Activsense completo.'
+    ],
+    [
+        'brand' => 'Ford',
+        'model' => 'Fiesta Titanium',
+        'price' => '$36.900.000',
+        'tagline' => 'Compacto con ADN deportivo',
+        'category' => 'sedan',
+        'year' => '2019',
+        'km' => '52.000 km',
+        'transmission' => 'Automatica',
+        'image' => 'https://images.unsplash.com/photo-1471478331149-c72f17e33c73?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Version Titanium con navegador Sync, sensores 360 y unico dueno.'
+    ],
+    [
+        'brand' => 'Nissan',
+        'model' => 'Frontier NP300',
+        'price' => '$119.900.000',
+        'tagline' => 'Pickup lista para trabajar',
+        'category' => 'pickup',
+        'year' => '2020',
+        'km' => '61.300 km',
+        'transmission' => 'Manual 4x4',
+        'image' => 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Version LE con cubre platón y accesorios utilitarios instalados.'
+    ],
+    [
+        'brand' => 'Toyota',
+        'model' => 'Prado TXL',
+        'price' => '$274.900.000',
+        'tagline' => 'Blindaje nivel III listo para rodar',
+        'category' => 'suv',
+        'year' => '2018',
+        'km' => '48.000 km',
+        'transmission' => 'Automatica',
+        'image' => 'https://images.unsplash.com/photo-1493238792000-8113da705763?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Blindaje certificado con garantia vigente y memoria de servicios completa.'
+    ],
+    [
+        'brand' => 'KIA',
+        'model' => 'Rio EX',
+        'price' => '$39.500.000',
+        'tagline' => 'Sedan perfecto para ciudad',
+        'category' => 'sedan',
+        'year' => '2018',
+        'km' => '67.800 km',
+        'transmission' => 'Automatica',
+        'image' => 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Consumo inteligente, camara de reversa y conectividad Apple CarPlay.'
+    ],
+    [
+        'brand' => 'Toyota',
+        'model' => 'Hilux SR5',
+        'price' => '$165.900.000',
+        'tagline' => 'Doble cabina impecable',
+        'category' => 'pickup',
+        'year' => '2021',
+        'km' => '32.700 km',
+        'transmission' => 'Automatica 4x4',
+        'image' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=60',
+        'description' => 'Version SR5 con bloqueo diferencial y mantenimiento en casa matriz.'
+    ],
+];
+
+$fallbackCars = array_map(function ($car) {
+    $car['location'] = $car['location'] ?? 'El Poblado, Medellin';
+    $car['gallery'] = $car['gallery'] ?? [];
+    return $car;
+}, $fallbackCars);
+
+$portalLogged = !empty($_SESSION['portal_user']);
+
+$testimonials = [
+    [
+        'name' => 'Laura Mejia',
+        'role' => 'Emprendedora',
+        'quote' => 'Vendimos nuestro Toyota en 48 horas y sali con un Mazda 3 financiado. Proceso impecable de principio a fin.',
+        'rating' => 5,
+        'meta' => 'Local Guide · 70 opiniones · 185 fotos',
+        'time' => 'Hace 8 meses'
+    ],
+    [
+        'name' => 'Juan Camilo',
+        'role' => 'Productor audiovisual',
+        'quote' => 'Necesitaba una camioneta blindada para mis giras y Top Autos se encargo del credito y la matricula en un solo dia.',
+        'rating' => 5,
+        'meta' => 'Local Guide · 33 opiniones',
+        'time' => 'Hace 1 año'
+    ],
+    [
+        'name' => 'Catalina Osorio',
+        'role' => 'Arquitecta',
+        'quote' => 'Su asesor digital me mando videos y fichas tecnicas de varios modelos. Termine escogiendo una Sportage impecable.',
+        'rating' => 4,
+        'meta' => '9 opiniones',
+        'time' => 'Hace 5 meses'
+    ],
+    [
+        'name' => 'Cliente Top Autos',
+        'role' => 'Local Guide',
+        'quote' => 'Super, excelente asesoria.',
+        'rating' => 5,
+        'meta' => 'Local Guide · 6 opiniones · 9 fotos',
+        'time' => 'Hace 4 años'
+    ],
+    [
+        'name' => 'Andres Miller',
+        'role' => 'Local Guide',
+        'quote' => 'Los mejores.',
+        'rating' => 5,
+        'meta' => 'Local Guide · 12 opiniones · 3 fotos',
+        'time' => 'Hace 1 año'
+    ],
+    [
+        'name' => 'Chris Wickardt',
+        'role' => 'Local Guide',
+        'quote' => 'Excelente servicio. Todo el personal fue muy servicial y paciente. Hicimos todo en casa, incluyendo el seguro adicional y el SOAT. No tuvimos que esperar en oficinas gubernamentales. El proceso fue muy fluido y profesional. ¡Sin duda volveria a comprar en Top Autos Colombia!',
+        'rating' => 5,
+        'meta' => 'Local Guide · 64 opiniones · 18 fotos',
+        'time' => 'Hace 2 años'
+    ],
+];
+$cars = [];
+
+if ($pdo instanceof PDO) {
+    $hasExtendedColumns = false;
+    try {
+        $stmt = $pdo->query('SELECT brand, model, price, tagline, category, year, km, transmission, description, image_url, location, gallery FROM cars ORDER BY created_at DESC');
+        $hasExtendedColumns = true;
+    } catch (Throwable $primary) {
+        try {
+            $stmt = $pdo->query('SELECT brand, model, price, tagline, category, year, km, transmission, description, image_url FROM cars ORDER BY created_at DESC');
+            $hasExtendedColumns = false;
+        } catch (Throwable $fallbackError) {
+            $stmt = null;
+        }
+    }
+
+    if ($stmt) {
+        while ($row = $stmt->fetch()) {
+            $galleryData = [];
+            if (!empty($hasExtendedColumns) && !empty($row['gallery'])) {
+                $decoded = json_decode($row['gallery'], true);
+                $galleryData = is_array($decoded) ? $decoded : [];
+            }
+
+            $cars[] = [
+                'brand' => $row['brand'],
+                'model' => $row['model'],
+                'price' => $row['price'],
+                'tagline' => $row['tagline'] ?: 'Unidad seleccionada por Top Autos',
+                'category' => $row['category'] ?: 'suv',
+                'year' => $row['year'] ?: '2020',
+                'km' => $row['km'] ?: '0 km',
+                'transmission' => $row['transmission'] ?: 'Automatica',
+                'image' => $row['image_url'] ?: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=900&q=60',
+                'description' => $row['description'] ?: 'Detalles disponibles bajo solicitud con nuestro equipo comercial.',
+                'location' => (!empty($hasExtendedColumns) && !empty($row['location'])) ? $row['location'] : 'El Poblado, Medellin',
+                'gallery' => $galleryData
+            ];
+        }
+    }
+}
+
+if (!$cars) {
+    $cars = $fallbackCars;
+}
+
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Autos Colombia | Compraventa Premium</title>
+    <meta name="description" content="Top Autos Colombia: compraventa premium de vehiculos en Medellin. Financiacion, peritaje, tramites y entrega inmediata con asesoria personalizada.">
+    <meta name="keywords" content="top autos, compraventa de autos, carros usados medellin, financiacion vehiculos, peritaje vehicular, compra y venta de autos">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://topautoscolombia.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Top Autos Colombia | Compraventa Premium">
+    <meta property="og:description" content="Compraventa premium de vehiculos con financiacion, peritaje y entrega inmediata en Medellin.">
+    <meta property="og:url" content="https://topautoscolombia.com/">
+    <meta property="og:image" content="https://topautoscolombia.com/img/topa.jpeg">
+    <meta property="og:locale" content="es_CO">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Top Autos Colombia | Compraventa Premium">
+    <meta name="twitter:description" content="Compraventa premium de vehiculos con financiacion, peritaje y entrega inmediata en Medellin.">
+    <meta name="twitter:image" content="https://topautoscolombia.com/img/topa.jpeg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://assets.juicer.io/embed.css" media="all">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "AutoDealer",
+            "name": "Top Autos Colombia",
+            "url": "https://topautoscolombia.com/",
+            "logo": "https://topautoscolombia.com/img/topa.jpeg",
+            "image": "https://topautoscolombia.com/img/topa.jpeg",
+            "telephone": "+57 301 555 0000",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Cra 43a #19-17. Ed Block Centro Empresarial",
+                "addressLocality": "Medellin",
+                "addressRegion": "Antioquia",
+                "addressCountry": "CO"
+            },
+            "areaServed": "Medellin",
+            "sameAs": [
+                "https://www.instagram.com/topautoscol"
+            ]
+        }
+    </script>
+    <style>
+        :root {
+            --bg: #050505;
+            --card: rgba(32, 32, 32, 0.9);
+            --glass: rgba(48, 48, 48, 0.7);
+            --text: #f4f4f0;
+            --muted: #a7a7a7;
+            --accent: #f7c948;
+            --accent-strong: #ff8c32;
+            --stroke: rgba(255,255,255,0.08);
+            --shadow: 0 20px 60px rgba(0,0,0,0.45);
+        }
+
+        html, body {
+            scroll-behavior: smooth;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top, #3a3a3a 0%, var(--bg) 55%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+            overflow-x: hidden;
+            font-weight: 700;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-style: italic;
+        }
+
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+            header.hero {
+                position: relative;
+                padding: 0 clamp(1.5rem, 5vw, 5rem) 0;
+                min-height: 55.00vw;
+                background: #050505 url('img/hero-bg.jpg') center top/100% auto no-repeat;
+        }
+
+        header.hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: transparent;
+            backdrop-filter: none;
+        }
+
+        header.hero > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        nav.nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.7rem clamp(1.5rem, 5vw, 5rem);
+            background: rgba(10,10,10,0.6);
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-radius: 0;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px) saturate(1.4);
+            -webkit-backdrop-filter: blur(20px) saturate(1.4);
+            width: auto;
+            max-width: none;
+            margin: 0 calc(-1 * clamp(1.5rem, 5vw, 5rem));
+            position: sticky;
+            top: 0;
+            overflow: visible;
+            animation: navDrop 0.8s ease both;
+            z-index: 5;
+            transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        nav.nav::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 15%;
+            right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+
+        nav.nav:hover {
+            background: rgba(10,10,10,0.75);
+            border-color: rgba(247,201,72,0.15);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        nav.nav:hover::after {
+            opacity: 0.7;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .brand img {
+            width: 42px;
+            border-radius: 0;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 12px rgba(247,201,72,0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .brand img:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 20px rgba(247,201,72,0.4);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            color: var(--muted);
+            flex-wrap: wrap;
+            line-height: 1.2;
+            align-items: center;
+        }
+
+        .nav-links a + a::before {
+            content: '';
+            width: 3px;
+            height: 3px;
+            border-radius: 0;
+            background: rgba(247,201,72,0.35);
+            margin-right: 0.4rem;
+            flex-shrink: 0;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .ig-link .ig-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ig-link svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-links a {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.35rem 0.65rem;
+            transition: color 0.2s ease, background 0.2s ease;
+            animation: navItemIn 0.6s ease both;
+            border-radius: 0;
+        }
+
+        .nav-links a:nth-child(1) { animation-delay: 0.2s; }
+        .nav-links a:nth-child(2) { animation-delay: 0.28s; }
+        .nav-links a:nth-child(3) { animation-delay: 0.36s; }
+        .nav-links a:nth-child(4) { animation-delay: 0.44s; }
+        .nav-links a:nth-child(5) { animation-delay: 0.52s; }
+        .nav-links a:nth-child(6) { animation-delay: 0.6s; }
+
+        .nav-links a::after {
+            display: none;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent);
+            background: rgba(247,201,72,0.1);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            animation: navItemIn 0.7s ease both;
+            animation-delay: 0.4s;
+        }
+
+        nav.nav .portal-link {
+            padding: 0.55rem 1.1rem;
+            font-size: 0.82rem;
+            background: transparent;
+            border-color: rgba(247,201,72,0.35);
+            color: var(--accent);
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        nav.nav .portal-link:hover {
+            background: rgba(247,201,72,0.1);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        nav.nav .pill-btn {
+            padding: 0.6rem 1.4rem;
+            font-size: 0.82rem;
+            letter-spacing: 0.1em;
+            box-shadow: 0 6px 18px rgba(247,201,72,0.2);
+            border-radius: 0;
+        }
+
+        .portal-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .portal-dropdown {
+            position: absolute;
+            left: 50%;
+            top: calc(100% - 2px);
+            transform: translateX(-50%);
+            display: none;
+            padding-top: 0.35rem;
+            z-index: 30;
+        }
+
+        .portal-group:hover .portal-dropdown {
+            display: block;
+        }
+
+        .portal-link {
+            padding: 0.85rem 1.9rem;
+            border-radius: 0;
+            border: 1px solid rgba(247,201,72,0.45);
+            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text);
+            transition: all 0.2s ease;
+            background: rgba(247,201,72,0.12);
+            position: relative;
+            box-shadow: none;
+        }
+
+        .portal-link:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(247,201,72,0.2);
+            transform: translateY(-2px);
+        }
+
+        .logout-btn {
+            padding: 1rem 2.3rem;
+            border-radius: 0;
+            border: 1px solid #ff6b6b;
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #0a0a0a;
+            background: linear-gradient(120deg, #ff6b6b, #d72638);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+        }
+
+        .logout-btn:hover {
+            border-color: #ff8585;
+            background: linear-gradient(120deg, #ff8585, #f74747);
+            transform: translateY(-3px) scale(1.02);
+        }
+
+        .logout-btn.logout-sm {
+            padding: 0.75rem 1.6rem;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+        }
+
+        .portal-link.logged-in:hover::after {
+            content: 'Ir al portal';
+            position: absolute;
+            left: 50%;
+            top: calc(100% - 6px);
+            transform: translate(-50%, 0);
+            background: rgba(10,10,10,0.92);
+            border: 1px solid var(--stroke);
+            padding: 0.35rem 0.65rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+            color: var(--text);
+            z-index: 20;
+        }
+
+        .portal-group.is-logged .portal-link.logged-in:hover::after {
+            content: none;
+            display: none;
+        }
+
+        .logout-toast {
+            position: fixed;
+            right: 1.4rem;
+            bottom: 1.4rem;
+            background: rgba(20,20,20,0.94);
+            border: 1px solid var(--stroke);
+            color: var(--text);
+            padding: 0.9rem 1.1rem;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            z-index: 999;
+            font-weight: 700;
+        }
+
+        .logout-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .pill-btn {
+            background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+            border: none;
+            color: #050505;
+            padding: 1.1rem 2.2rem;
+            border-radius: 0;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 12px 25px rgba(0,0,0,0.25);
+        }
+
+        .pill-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 24px 40px rgba(0,0,0,0.45);
+        }
+
+        a.pill-btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .primary-cta {
+            display: inline-flex;
+            margin-top: 2.5rem;
+            margin-top: 0;
+            position: relative;
+            top: -3px;
+        }
+
+        .primary-cta .pill-btn {
+            animation: ctaPulse 4s ease-in-out infinite;
+        }
+
+        .secondary-cta {
+            background: transparent;
+            color: var(--text);
+            border: none;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 12px 25px rgba(0,0,0,0.25);
+            margin-top: 6px;
+        }
+
+        .hero-cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2.5rem;
+            align-items: center;
+            margin-top: 4rem;
+            max-width: 520px;
+            margin-left: auto;
+        }
+
+        .hero-copy {
+            text-align: right;
+            animation: heroRise 0.9s ease both;
+        }
+
+        .hero-copy h1 {
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            font-style: italic;
+            font-weight: 700;
+            font-size: clamp(3.2rem, 7vw, 5.2rem);
+            line-height: 1.05;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.02em;
+            text-shadow: 0 12px 28px rgba(0,0,0,0.55);
+        }
+
+        .hero-copy h1 span {
+            color: var(--accent);
+        }
+
+        .hero-copy p {
+            color: rgba(255,255,255,0.92);
+            max-width: 36rem;
+            margin-bottom: 2.4rem;
+            font-size: 1.06rem;
+            font-weight: 600;
+            text-shadow: 0 6px 20px rgba(0,0,0,0.35);
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 2rem;
+            justify-content: flex-end;
+        }
+
+        .badge {
+            border: 1px solid var(--stroke);
+            padding: 0.75rem 1.1rem;
+            border-radius: 0;
+            font-size: 0.9rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+        }
+
+        .hero-video {
+            background: var(--card);
+            border-radius: 0;
+            border: 1px solid var(--stroke);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .hero-video figure {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0;
+            max-height: 520px;
+            background: #0c0c0c;
+        }
+
+        .hero-logo-slot {
+            position: absolute;
+            top: -250px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 240px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .hero-logo-slot img {
+            width: 100%;
+            max-width: 240px;
+            filter: drop-shadow(0 10px 18px rgba(0,0,0,0.45));
+            border-radius: 50%;
+            border: 3px solid rgba(247,201,72,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .hero-logo-slot img:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(247,201,72,0.25), 0 16px 30px rgba(0,0,0,0.45);
+            transform: translateY(-2px) scale(1.01);
+        }
+
+        .hero-video figure::after {
+            content: 'Top Autos';
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: rgba(0,0,0,0.65);
+            padding: 0.4rem 1rem;
+            border-radius: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.75rem;
+        }
+
+        .hero-video video,
+        .hero-video img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .instagram-section {
+            background: linear-gradient(135deg, rgba(30,30,30,0.9), rgba(12,12,12,0.92));
+            border-top: 1px solid var(--stroke);
+            border-bottom: 1px solid var(--stroke);
+        }
+
+        .ig-feed {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        section {
+            padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 6vw, 5rem);
+        }
+
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-head h2 {
+            font-size: clamp(1.6rem, 3vw, 2.4rem);
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            font-style: italic;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .section-head p {
+            color: var(--muted);
+            max-width: 36rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.2rem;
+        }
+
+        .stat-card {
+            border-radius: 0;
+            padding: 1.5rem;
+            background: var(--card);
+            border: 1px solid var(--stroke);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card h3 {
+            font-size: 2.5rem;
+            color: var(--accent);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .service-card {
+            padding: 1.8rem;
+            border-radius: 0;
+            background: linear-gradient(145deg, #2a2a2a, #101010);
+            border: 1px solid var(--stroke);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .service-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow);
+        }
+
+        .service-card span {
+            font-size: 2rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .inventory-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 2rem;
+        }
+
+        .inventory-controls button {
+            background: transparent;
+            border: 1px solid var(--stroke);
+            color: var(--muted);
+            padding: 0.6rem 1.4rem;
+            border-radius: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .inventory-controls button.active,
+        .inventory-controls button:hover {
+            color: #050505;
+            background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 22px rgba(0,0,0,0.35);
+        }
+
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .car-card {
+            border-radius: 0;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--stroke);
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .car-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.45);
+        }
+
+        .car-card figure {
+            height: 220px;
+            position: relative;
+        }
+
+        .car-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .price-tag {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .meta {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .tagline {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .card-footer {
+            padding: 0 1.5rem 1.5rem;
+            margin-top: auto;
+        }
+
+        .ghost-btn {
+            width: 100%;
+            padding: 0.9rem;
+            border-radius: 0;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: transparent;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+
+        .ghost-btn:hover {
+            background: var(--accent);
+            color: #050505;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(0,0,0,0.3);
+        }
+
+        .financing {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .financing-card {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 0;
+            border: 1px solid var(--stroke);
+            box-shadow: var(--shadow);
+        }
+
+        .financing-card input,
+        .financing-card select {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            color: var(--text);
+            font-weight: 700;
+            padding: 0.9rem 1.2rem;
+        }
+
+        .financing-card select {
+            appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+                linear-gradient(135deg, var(--accent) 50%, transparent 50%),
+                linear-gradient(120deg, rgba(247,201,72,0.12), rgba(255,140,50,0.2));
+            background-position:
+                calc(100% - 1.3rem) calc(50% - 0.25rem),
+                calc(100% - 1rem) calc(50% - 0.25rem),
+                100% 0;
+            background-size: 9px 9px, 9px 9px, auto;
+            background-repeat: no-repeat;
+            padding-right: 2.6rem;
+        }
+
+        .financing-card select option {
+            background: #0f0f0f;
+            color: var(--text);
+        }
+
+        .finance-result {
+            margin-top: 0.9rem;
+            padding: 0.85rem 1rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+        .finance-result.animate {
+            animation: pulseResult 0.6s ease;
+        }
+        @keyframes pulseResult {
+            0% { transform: scale(0.98); opacity: 0.4; }
+            60% { transform: scale(1.01); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .whatsapp-btn {
+            background: linear-gradient(120deg, #2fd36b, #1fae55);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .whatsapp-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #ffffff;
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .timeline-step {
+            border-left: 2px solid var(--accent);
+            padding-left: 1rem;
+        }
+
+        .testimonial-slider {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            margin-top: 24px;
+        }
+
+        .testimonial-track {
+            display: flex;
+            gap: 18px;
+            width: max-content;
+            animation: testimonialMarquee var(--marquee-duration, 48s) linear infinite;
+        }
+
+        .testimonial-slider:hover .testimonial-track {
+            animation-play-state: paused;
+        }
+
+        .testimonial-card {
+            flex: 0 0 calc((100% - 36px) / 3);
+            background: #ffffff;
+            color: #1f1f1f;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 18px 34px rgba(0,0,0,0.15);
+            border-radius: 14px;
+            padding: 1.2rem 1.3rem;
+            display: grid;
+            gap: 0.65rem;
+            height: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .testimonial-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 22px 40px rgba(0,0,0,0.2);
+        }
+
+        .testimonial-google {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .testimonial-google svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .testimonial-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+        }
+
+        .testimonial-user {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+
+        .testimonial-avatar {
+            width: 44px;
+            height: 44px;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fbbc04, #ea4335);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+
+        .testimonial-meta {
+            display: grid;
+            gap: 2px;
+        }
+
+        .testimonial-meta strong { color: #1f1f1f; }
+        .testimonial-meta span { color: #5f6368; font-size: 0.92rem; }
+
+        .testimonial-stars {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .testimonial-stars svg {
+            width: 18px;
+            height: 18px;
+            fill: #fbbc04;
+        }
+
+        .testimonial-quote {
+            font-weight: 600;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #2b2b2b;
+        }
+
+        .testimonial-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #5f6368;
+            font-size: 0.9rem;
+        }
+
+        .testimonial-nav {
+            display: none;
+        }
+
+        .testimonial-btn {
+            border: none;
+            background: #0d6efd;
+            color: #fff;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 10px 20px rgba(13,110,253,0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .testimonial-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(13,110,253,0.35);
+        }
+
+        .testimonial-dots {
+            display: flex;
+            gap: 10px;
+        }
+
+        .testimonial-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ced4da;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .testimonial-dot.is-active {
+            background: #0d6efd;
+            transform: scale(1.1);
+        }
+
+        @keyframes testimonialMarquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(calc(-1 * var(--marquee-distance, 50%))); }
+        }
+
+        @media (max-width: 1024px) {
+            .testimonial-card {
+                flex: 0 0 calc((100% - 18px) / 2);
+            }
+        }
+
+        @media (max-width: 720px) {
+            .testimonial-track {
+                gap: 14px;
+            }
+            .testimonial-card {
+                flex: 0 0 100%;
+            }
+        }
+
+        .contact-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            z-index: 999;
+        }
+
+        .modal {
+            background: var(--card);
+            border-radius: 0;
+            border: 1px solid var(--stroke);
+            max-width: 900px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            overflow: hidden;
+            gap: 0;
+        }
+
+        .modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .modal-content {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .location-line {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .gallery-grid img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 0;
+            border: 1px solid var(--stroke);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        input, textarea, select {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            padding: 0.9rem 1.2rem;
+            color: var(--text);
+            font-family: inherit;
+            font-weight: 700;
+        }
+
+        textarea {
+            min-height: 140px;
+        }
+
+        footer {
+            border-top: 1px solid var(--stroke);
+            padding: 2rem clamp(1.5rem, 6vw, 5rem);
+            color: var(--muted);
+            text-align: center;
+            background: #050505;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: #050505;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 25px rgba(0,0,0,0.35);
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            transform: translateY(12px);
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ── Hamburger button ── */
+        .nav-toggle {
+            display: none;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            position: relative;
+            padding: 0;
+            flex-shrink: 0;
+            z-index: 10;
+            transition: border-color 0.2s ease;
+        }
+        .nav-toggle:hover {
+            border-color: var(--accent);
+        }
+        .nav-toggle span,
+        .nav-toggle span::before,
+        .nav-toggle span::after {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: var(--text);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: all 0.3s ease;
+        }
+        .nav-toggle span {
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .nav-toggle span::before {
+            content: '';
+            top: -6px;
+            left: 0;
+            transform: none;
+        }
+        .nav-toggle span::after {
+            content: '';
+            top: 6px;
+            left: 0;
+            transform: none;
+        }
+        /* Hamburger → X animation */
+        .nav-toggle.is-active span {
+            background: transparent;
+        }
+        .nav-toggle.is-active span::before {
+            top: 0;
+            transform: rotate(45deg);
+            background: var(--accent);
+        }
+        .nav-toggle.is-active span::after {
+            top: 0;
+            transform: rotate(-45deg);
+            background: var(--accent);
+        }
+
+        @media (max-width: 720px) {
+            .nav-toggle {
+                display: block;
+            }
+            nav.nav {
+                flex-wrap: wrap;
+                gap: 0;
+                position: sticky;
+                top: 0;
+                width: 100%;
+                border-radius: 0;
+                padding: 0.7rem 1rem;
+                margin: 0 auto 0;
+            }
+            nav.nav::after {
+                display: none;
+            }
+            nav.nav:hover {
+                transform: none;
+            }
+            .brand {
+                flex: 1;
+            }
+            .nav-links {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                gap: 0;
+                padding: 0.8rem 0 0.4rem;
+                border-top: 1px solid var(--stroke);
+                margin-top: 0.7rem;
+            }
+            .nav-links.is-open {
+                display: flex;
+            }
+            .nav-links a + a::before {
+                display: none;
+            }
+            .nav-links a {
+                padding: 0.7rem 0.8rem;
+                font-size: 0.9rem;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .nav-links a:last-child {
+                border-bottom: none;
+            }
+            .nav-actions {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                gap: 0.6rem;
+                padding: 0.6rem 0 0.2rem;
+            }
+            .nav-actions.is-open {
+                display: flex;
+            }
+            .nav-actions .portal-group {
+                width: 100%;
+            }
+            nav.nav .portal-link {
+                width: 100%;
+                text-align: center;
+                padding: 0.7rem;
+            }
+            nav.nav .pill-btn {
+                width: 100%;
+                text-align: center;
+                padding: 0.7rem;
+            }
+            .hero-grid {
+                margin-left: 0;
+                max-width: 100%;
+            }
+            .hero-copy {
+                text-align: left;
+            }
+            .badges {
+                justify-content: flex-start;
+            }
+            .hero-cta-row {
+                justify-content: flex-start;
+            }
+            .hero-copy h1 {
+                font-size: 2.6rem;
+            }
+            .section-head {
+                flex-direction: column;
+                text-align: center;
+            }
+            .instagram-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            section {
+                padding: clamp(1.5rem, 4vw, 3rem) 0.7rem;
+            }
+            /* ── Inventory: 2 columnas compactas ── */
+            .inventory-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+            .car-card figure {
+                height: 110px;
+            }
+            .card-body {
+                padding: 0.6rem 0.7rem;
+                gap: 0.25rem;
+            }
+            .card-body h4 {
+                font-size: 0.78rem;
+                line-height: 1.2;
+            }
+            .card-body .tagline {
+                font-size: 0.72rem;
+                line-height: 1.3;
+                display: -webkit-box;
+                -webkit-line-clamp: 1;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .card-body .price-tag {
+                font-size: 0.85rem;
+            }
+            .card-body .meta {
+                font-size: 0.68rem;
+                gap: 0.4rem;
+            }
+            .card-footer {
+                padding: 0 0.7rem 0.7rem;
+            }
+            .ghost-btn {
+                padding: 0.5rem;
+                font-size: 0.75rem;
+            }
+            .inventory-controls {
+                gap: 0.4rem;
+                margin-bottom: 1rem;
+            }
+            .inventory-controls button {
+                padding: 0.4rem 0.9rem;
+                font-size: 0.75rem;
+            }
+            /* ── Services: 2 columnas ── */
+            .services-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+            .service-card {
+                padding: 1rem;
+            }
+            .service-card span {
+                font-size: 1.4rem;
+                margin-bottom: 0.5rem;
+            }
+            .service-card h3 {
+                font-size: 0.85rem;
+            }
+            .service-card p {
+                font-size: 0.75rem;
+                line-height: 1.4;
+            }
+            /* ── Stats: 2x2 compacto ── */
+            .stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+            .stat-card {
+                padding: 0.9rem;
+            }
+            .stat-card h3 {
+                font-size: 1.6rem;
+            }
+            .stat-card p {
+                font-size: 0.72rem;
+                line-height: 1.3;
+            }
+            /* ── Contact: 1 col pero compacta ── */
+            .contact-section {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            /* ── Financiacion ── */
+            .financing {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            /* ── Timeline: 2 columnas ── */
+            .timeline {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+            .timeline-step {
+                padding-left: 0.7rem;
+            }
+            .timeline-step h4 {
+                font-size: 0.82rem;
+            }
+            .timeline-step p {
+                font-size: 0.72rem;
+                line-height: 1.35;
+            }
+            /* ── Section heads compactos ── */
+            .section-head {
+                margin-bottom: 1.2rem;
+            }
+            .section-head h2 {
+                font-size: 1.3rem;
+            }
+            .section-head p {
+                font-size: 0.8rem;
+                line-height: 1.4;
+            }
+            /* ── Testimonials compactos ── */
+            .testimonial-card {
+                padding: 0.8rem 0.9rem;
+                gap: 0.4rem;
+            }
+            .testimonial-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+            .testimonial-quote {
+                font-size: 0.82rem;
+                line-height: 1.4;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .testimonial-meta strong {
+                font-size: 0.82rem;
+            }
+            .testimonial-meta span {
+                font-size: 0.72rem;
+            }
+            .testimonial-footer {
+                font-size: 0.72rem;
+            }
+            .testimonial-stars svg {
+                width: 13px;
+                height: 13px;
+            }
+            /* ── Inventario carrusel movil ── */
+            .inventory-grid {
+                position: relative;
+                overflow: hidden;
+            }
+            .inventory-grid .car-card {
+                flex-shrink: 0;
+                min-height: auto;
+            }
+            /* Animaciones de entrada del carrusel */
+            .inventory-grid.inv-slide-left .car-card {
+                animation: invSlideInLeft 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+            }
+            .inventory-grid.inv-slide-right .car-card {
+                animation: invSlideInRight 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+            }
+            .inventory-grid .car-card:nth-child(odd) {
+                animation-delay: 0s;
+            }
+            .inventory-grid .car-card:nth-child(even) {
+                animation-delay: 0.06s;
+            }
+            @keyframes invSlideInLeft {
+                from { opacity: 0; transform: translateX(40px); }
+                to   { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes invSlideInRight {
+                from { opacity: 0; transform: translateX(-40px); }
+                to   { opacity: 1; transform: translateX(0); }
+            }
+            .inventory-carousel-nav {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.8rem;
+                margin-top: 1rem;
+                padding: 0.5rem 0;
+            }
+            .inv-carousel-btn {
+                width: 36px;
+                height: 36px;
+                border-radius: 0;
+                border: 1px solid var(--stroke);
+                background: rgba(10,10,10,0.7);
+                color: var(--text);
+                font-size: 1.2rem;
+                cursor: pointer;
+                display: grid;
+                place-items: center;
+                transition: background 0.2s, border-color 0.2s, transform 0.15s, color 0.2s;
+                flex-shrink: 0;
+            }
+            .inv-carousel-btn:hover {
+                border-color: var(--accent);
+                background: rgba(247,201,72,0.15);
+                color: var(--accent);
+                transform: scale(1.08);
+            }
+            .inv-carousel-btn:active {
+                transform: scale(0.95);
+            }
+            .inv-carousel-btn:disabled {
+                opacity: 0.25;
+                pointer-events: none;
+            }
+            .inv-carousel-dots {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+            .inv-carousel-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                border: none;
+                background: rgba(255,255,255,0.2);
+                cursor: pointer;
+                padding: 0;
+                transition: background 0.25s, transform 0.25s, box-shadow 0.25s;
+            }
+            .inv-carousel-dot.active {
+                background: var(--accent);
+                transform: scale(1.4);
+                box-shadow: 0 0 8px rgba(247,201,72,0.4);
+            }
+            .inv-carousel-counter {
+                font-size: 0.72rem;
+                color: var(--muted);
+                letter-spacing: 0.05em;
+                min-width: 3ch;
+                text-align: center;
+            }
+            /* ── Botones y pills mas compactos ── */
+            .pill-btn {
+                padding: 0.7rem 1.2rem;
+                font-size: 0.8rem;
+            }
+            /* ── Footer compacto ── */
+            footer {
+                padding: 1.2rem 0.7rem;
+                font-size: 0.78rem;
+            }
+        }
+
+        @keyframes ctaPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        @keyframes navDrop {
+            0% { transform: translateY(-16px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes navItemIn {
+            0% { transform: translateY(6px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes heroRise {
+            0% { transform: translateY(16px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <header class="hero" id="inicio">
+        <nav class="nav" id="nav">
+            <div class="brand">
+                <img src="img/topa.jpeg" alt="Top Autos logo">
+            </div>
+            <button class="nav-toggle" id="navToggle" aria-label="Abrir menu" aria-expanded="false"><span></span></button>
+            <div class="nav-links" id="navLinks">
+                <a href="#inventario">Nuestros autos</a>
+                <a href="#servicios">Servicios</a>
+                <a href="#trusted">Datos reales</a>
+                <a href="#financiacion">Financiacion</a>
+                <a href="#testimonios">Reseñas</a>
+                <a href="#contacto">Contacto</a>
+            </div>
+            <div class="nav-actions" id="navActions">
+                <?php if ($portalLogged): ?>
+                    <form id="logoutForm" action="index.php" method="post" style="display:none;">
+                        <input type="hidden" name="logout" value="1">
+                    </form>
+                <?php endif; ?>
+                <div class="portal-group <?php echo $portalLogged ? 'is-logged' : ''; ?>">
+                    <a class="portal-link <?php echo $portalLogged ? 'logged-in' : ''; ?>" href="portal.php">
+                        Portal
+                    </a>
+                    <?php if ($portalLogged): ?>
+                        <div class="portal-dropdown">
+                            <button type="button" class="logout-btn logout-sm" onclick="document.getElementById('logoutForm').submit();">Cerrar sesion</button>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <button class="pill-btn" data-scroll-to="#contacto">Agendar visita</button>
+            </div>
+        </nav>
+
+        <div class="hero-grid">
+            <div class="hero-copy">
+                
+            </div>
+        </div>
+    </header>
+
+    <?php if (!empty($logoutToast)): ?>
+        <div class="logout-toast" id="logoutToast">Sesion cerrada correctamente.</div>
+    <?php endif; ?>
+
+    <section id="inventario">
+        <div class="section-head">
+            <h2>Inventario destacado</h2>
+            <p>Curamos cada unidad con el mismo look & feel de nuestras publicaciones: fondos urbanos, contraste alto y tipografia contundente.</p>
+        </div>
+        <div class="inventory-controls">
+            <button class="active" data-filter="all">Todo</button>
+            <button data-filter="suv">SUV</button>
+            <button data-filter="sedan">Sedanes</button>
+            <button data-filter="pickup">Pickups</button>
+        </div>
+        <div class="inventory-grid" id="inventoryGrid">
+            <?php foreach ($cars as $car): ?>
+                <article class="car-card" data-category="<?php echo htmlspecialchars($car['category']); ?>" data-car='<?php echo json_encode($car, JSON_HEX_APOS | JSON_HEX_QUOT); ?>'>
+                    <figure>
+                        <img src="<?php echo htmlspecialchars($car['image']); ?>" alt="<?php echo htmlspecialchars($car['brand'] . ' ' . $car['model']); ?>">
+                    </figure>
+                    <div class="card-body">
+                        <h4><?php echo htmlspecialchars($car['brand']); ?> <strong><?php echo htmlspecialchars($car['model']); ?></strong></h4>
+                        <p class="tagline"><?php echo htmlspecialchars($car['tagline']); ?></p>
+                        <span class="price-tag"><?php echo htmlspecialchars($car['price']); ?></span>
+                        <div class="meta">
+                            <span><?php echo htmlspecialchars($car['year']); ?></span>
+                            <span><?php echo htmlspecialchars($car['km']); ?></span>
+                            <span><?php echo htmlspecialchars($car['transmission']); ?></span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="ghost-btn" data-action="modal">Ver ficha</button>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <div class="inventory-carousel-nav" id="invCarouselNav" style="display:none;">
+            <button class="inv-carousel-btn" data-inv-dir="prev" aria-label="Anterior">&#8249;</button>
+            <div class="inv-carousel-dots" id="invCarouselDots"></div>
+            <button class="inv-carousel-btn" data-inv-dir="next" aria-label="Siguiente">&#8250;</button>
+        </div>
+    </section>
+
+    <section id="servicios">
+        <div class="section-head">
+            <h2>Servicios</h2>
+            <p>Gestion completa: compramos, consignamos, financiamos y entregamos vehiculos con garantia, soporte digital y acompanamiento legal.</p>
+        </div>
+        <div class="services-grid">
+            <article class="service-card">
+                <span>💳</span>
+                <h3>Credito inmediato</h3>
+                <p>Mas de 12 bancos aliados, aprobaciones en menos de 3 horas con tasas preferenciales.</p>
+            </article>
+            <article class="service-card">
+                <span>🛡️</span>
+                <h3>Polizas y blindaje</h3>
+                <p>Proteccion total con aseguradoras top y blindajes certificados nivel II al V.</p>
+            </article>
+            <article class="service-card">
+                <span>🧾</span>
+                <h3>Tramites de transito</h3>
+                <p>Matriculas, traspasos y radicados express. Entregamos el auto listo para rodar.</p>
+            </article>
+            <article class="service-card">
+                <span>🎬</span>
+                <h3>Contenido premium</h3>
+                <p>Fotos, reels y lives con la estetica que viste en Instagram para vender mas rapido.</p>
+            </article>
+        </div>
+    </section>
+
+    <section id="trusted">
+        <div class="section-head">
+            <h2>Datos reales</h2>
+            <p>Transacciones respaldadas por peritos, alianzas bancarias y clientes de todo el pais. Seguimos creciendo con el mismo estilo de nuestras redes.</p>
+        </div>
+        <div class="stats">
+            <article class="stat-card">
+                <h3 data-count="1933">0</h3>
+                <p>Publicaciones activas inspiradas en Instagram</p>
+            </article>
+            <article class="stat-card">
+                <h3 data-count="12800">0</h3>
+                <p>Seguidores conectados buscando oportunidades</p>
+            </article>
+            <article class="stat-card">
+                <h3 data-count="2999">0</h3>
+                <p>Clientes felices que recomiendan</p>
+            </article>
+            <article class="stat-card">
+                <h3 data-count="72">0</h3>
+                <p>Aliados entre bancos, aseguradoras y talleres</p>
+            </article>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" id="carModal">
+        <div class="modal">
+            <figure>
+                <img src="" alt="" id="modalImage">
+            </figure>
+            <div class="modal-content">
+                <button class="modal-close" aria-label="Cerrar">×</button>
+                <h3 id="modalTitle"></h3>
+                <p id="modalTagline"></p>
+                <div class="meta" id="modalMeta"></div>
+                <p class="location-line" id="modalLocation"></p>
+                <p id="modalDescription"></p>
+                <div class="gallery-grid" id="modalGallery"></div>
+                <span class="price-tag" id="modalPrice"></span>
+                <a class="pill-btn" id="modalWhatsApp" target="_blank" rel="noopener">Contactar por WhatsApp</a>
+            </div>
+        </div>
+    </div>
+
+    <section id="financiacion">
+        <div class="financing">
+            <div>
+                <div class="section-head">
+                    <h2>Financiacion</h2>
+                    <p>Te guiamos paso a paso para que estrenes con respaldo bancario y sin vueltas innecesarias.</p>
+                </div>
+                <div class="timeline">
+                    <div class="timeline-step">
+                        <h4>¿Como quieres financiar tu auto?</h4>
+                        <p>Elige entre credito tradicional, leasing o plan 50/50 con abono inicial flexible.</p>
+                    </div>
+                    <div class="timeline-step">
+                        <h4>Requisitos basicos</h4>
+                        <p>Documento de identidad, ingresos comprobables, historial crediticio y autorizacion de consulta.</p>
+                    </div>
+                    <div class="timeline-step">
+                        <h4>Soporte Top Autos</h4>
+                        <p>Un asesor te acompana con preaprobado, simulacion real y alistamiento de papeles.</p>
+                    </div>
+                    <div class="timeline-step">
+                        <h4>Entrega segura</h4>
+                        <p>Firmas digitales, seguro y SOAT incluidos para salir rodando el mismo dia.</p>
+                    </div>
+                </div>
+                <div style="margin-top:1.5rem;">
+                    <a class="pill-btn whatsapp-btn" href="https://wa.me/573158461540?text=Hola%2C%20quiero%20financiar%20mi%20auto%20con%20Top%20Autos.%20%C2%BFMe%20ayudan%20con%20los%20requisitos%3F" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                            <defs>
+                                <linearGradient id="waGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#57e676"/>
+                                    <stop offset="1" stop-color="#1fae55"/>
+                                </linearGradient>
+                            </defs>
+                            <rect x="4" y="4" width="56" height="56" rx="12" fill="url(#waGrad)"/>
+                            <path fill="#fff" d="M32.1 14.8c-9.4 0-17 7.3-17 16.3 0 2.9.8 5.6 2.2 8L15 49.2l10.7-2.8c2.1 1.1 4.5 1.7 7 1.7 9.4 0 17-7.3 17-16.3s-7.6-16.9-17.6-16.9zm9.6 23.3c-.4 1-2 1.8-2.8 1.9-.7.1-1.6.2-2.6-.1-.6-.2-1.4-.4-2.4-.9-4.2-1.9-6.9-6.3-7.1-6.6-.2-.3-1.7-2.2-1.7-4.3 0-2 .9-2.9 1.3-3.3.4-.4.8-.5 1.1-.5h.8c.2 0 .5 0 .7.6.3.6.9 2.1 1 2.3.1.2.1.4 0 .6-.1.2-.2.4-.4.6-.2.2-.4.4-.6.6-.2.2-.4.4-.2.8.2.4 1 1.6 2.2 2.6 1.5 1.3 2.8 1.7 3.2 1.9.4.2.6.2.9-.1.3-.3.9-1 1.1-1.4.2-.3.4-.3.7-.2.3.1 1.9.9 2.2 1 .3.2.5.3.6.5.1.2.1.9-.3 1.8z"/>
+                        </svg>
+                        Financia tu auto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="testimonios">
+        <div class="section-head" style="align-items:flex-start;">
+            <h2>Reseñas</h2>
+            <p style="max-width: 520px;">Los mismos rostros que ves en los reels cuentan su experiencia.</p>
+        </div>
+        <div class="testimonial-slider" data-testid="testimonial-slider">
+            <div class="testimonial-track">
+                <?php foreach ($testimonials as $testimonial): ?>
+                    <article class="testimonial-card">
+                        <span class="testimonial-google" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" role="img" aria-label="Google">
+                                <path fill="#4285F4" d="M23.49 12.27c0-.82-.07-1.6-.21-2.35H12v4.45h6.45a5.52 5.52 0 0 1-2.39 3.62v3.01h3.86c2.26-2.08 3.57-5.15 3.57-8.73z"/>
+                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.9l-3.86-3.01c-1.07.72-2.44 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.26v3.12A12 12 0 0 0 12 24z"/>
+                                <path fill="#FBBC05" d="M5.25 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.13-1.56.35-2.27V6.61H1.26A12 12 0 0 0 0 12c0 1.93.46 3.76 1.26 5.39l3.99-3.12z"/>
+                                <path fill="#EA4335" d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.18 15.24 0 12 0A12 12 0 0 0 1.26 6.61l3.99 3.12C6.2 6.88 8.86 4.77 12 4.77z"/>
+                            </svg>
+                        </span>
+                        <div class="testimonial-head">
+                            <div class="testimonial-user">
+                                <div class="testimonial-avatar"><?php echo strtoupper(substr($testimonial['name'], 0, 1)); ?></div>
+                                <div class="testimonial-meta">
+                                    <strong><?php echo htmlspecialchars($testimonial['name']); ?></strong>
+                                    <span><?php echo htmlspecialchars($testimonial['meta'] ?? $testimonial['role']); ?></span>
+                                </div>
+                            </div>
+                            <div class="testimonial-stars" aria-label="<?php echo $testimonial['rating']; ?> estrellas">
+                                <?php for ($i = 0; $i < $testimonial['rating']; $i++): ?>
+                                    <svg viewBox="0 0 24 24"><path d="M12 17.3l-6.18 3.64 1.64-7.03L2 8.92l7.19-.62L12 2l2.81 6.3 7.19.62-5.46 5 1.64 7.03z"></path></svg>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <p class="testimonial-quote">“<?php echo htmlspecialchars($testimonial['quote']); ?>”</p>
+                        <div class="testimonial-footer">
+                            <span>Google Reviews</span>
+                            <?php if (!empty($testimonial['time'])): ?>
+                                <span><?php echo htmlspecialchars($testimonial['time']); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+            <div class="testimonial-nav">
+                <button class="testimonial-btn" type="button" data-action="prev">‹</button>
+                <div class="testimonial-dots" data-dots></div>
+                <button class="testimonial-btn" type="button" data-action="next">›</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="contacto">
+        <div class="section-head">
+            <h2>Visitanos</h2>
+            <p>Cra 43a #19-17. Ed Block Centro Empresarial, Medellin. Agenda tu cita o escribenos y replicamos la experiencia digital.</p>
+        </div>
+        <div class="contact-section">
+            <form>
+                <input type="text" placeholder="Nombre completo">
+                <input type="tel" placeholder="Telefono">
+                <input type="email" placeholder="Correo">
+                <textarea placeholder="Cuentanos que auto buscas"></textarea>
+                <button type="submit" class="pill-btn">Enviar mensaje</button>
+            </form>
+            <div>
+                <iframe title="Mapa Top Autos" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.858664221081!2d-75.577849!3d6.196663!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e468263f5d9f2c1%3A0xd68b4641f2b805d9!2sEl%20Poblado%2C%20Medellin!5e0!3m2!1ses!2sco!4v1700000000000!5m2!1ses!2sco" width="100%" height="320" style="border:0;border-radius:0;" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>© <?php echo date('Y'); ?> Top Autos Colombia · Instagram @topautoscol · WhatsApp +57 301 555 0000</p>
+    </footer>
+
+    <button type="button" class="back-to-top" aria-label="Volver al inicio">↑</button>
+
+    <script>
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const target = +el.dataset.count;
+                    let current = 0;
+                    const step = Math.ceil(target / 80);
+                    const interval = setInterval(() => {
+                        current += step;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(interval);
+                        }
+                        el.textContent = current.toLocaleString('es-CO');
+                    }, 30);
+                    observer.unobserve(el);
+                }
+            });
+        }, { threshold: 0.6 });
+
+        document.querySelectorAll('[data-count]').forEach(stat => observer.observe(stat));
+
+        const filterButtons = document.querySelectorAll('.inventory-controls button');
+        const cards = document.querySelectorAll('.car-card');
+        const backdrop = document.getElementById('carModal');
+        const modalImage = document.getElementById('modalImage');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalTagline = document.getElementById('modalTagline');
+        const modalMeta = document.getElementById('modalMeta');
+        const modalPrice = document.getElementById('modalPrice');
+        const modalDescription = document.getElementById('modalDescription');
+        const modalLocation = document.getElementById('modalLocation');
+        const modalGallery = document.getElementById('modalGallery');
+        const modalWhatsApp = document.getElementById('modalWhatsApp');
+        const modalClose = document.querySelector('.modal-close');
+        const backToTop = document.querySelector('.back-to-top');
+        const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+        const navElement = document.getElementById('nav');
+        const scrollTriggers = document.querySelectorAll('[data-scroll-to]');
+        const logoutToastEl = document.getElementById('logoutToast');
+        const testimonialSlider = document.querySelector('[data-testid="testimonial-slider"]');
+
+        function initTestimonialSlider() {
+            if (!testimonialSlider) return;
+            const track = testimonialSlider.querySelector('.testimonial-track');
+            if (!track) return;
+
+            const getVisibleCount = () => {
+                if (window.innerWidth <= 720) return 1;
+                if (window.innerWidth <= 1024) return 2;
+                return 3;
+            };
+
+            function setupMarquee() {
+                const originals = Array.from(track.children).filter(node => !node.dataset.clone);
+                if (originals.length === 0) return;
+
+                Array.from(track.querySelectorAll('[data-clone="true"]')).forEach(node => node.remove());
+
+                const gap = parseFloat(getComputedStyle(track).gap || 0);
+                const visible = getVisibleCount();
+                const cardWidth = (testimonialSlider.clientWidth - gap * (visible - 1)) / visible;
+                originals.forEach(card => {
+                    card.style.flex = `0 0 ${cardWidth}px`;
+                });
+
+                const cloned = originals.map(card => {
+                    const clone = card.cloneNode(true);
+                    clone.dataset.clone = 'true';
+                    clone.style.flex = `0 0 ${cardWidth}px`;
+                    return clone;
+                });
+                cloned.forEach(node => track.appendChild(node));
+
+                const originalWidth = originals.reduce((sum, card) => sum + card.getBoundingClientRect().width, 0)
+                    + gap * Math.max(originals.length - 1, 0);
+                const speed = 60; // px/seg (mas rapido)
+                const duration = Math.max(originalWidth / speed, 14);
+                track.style.setProperty('--marquee-distance', `${originalWidth}px`);
+                track.style.setProperty('--marquee-duration', `${duration}s`);
+            }
+
+            setupMarquee();
+            window.addEventListener('resize', setupMarquee);
+        }
+
+        initTestimonialSlider();
+
+        function smoothScrollTo(targetY, duration = 900) {
+            const startY = window.scrollY;
+            const distance = targetY - startY;
+            const startTime = performance.now();
+
+            function step(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
+                window.scrollTo(0, startY + distance * eased);
+                if (progress < 1) requestAnimationFrame(step);
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        function scrollToSelector(selector) {
+            const target = selector ? document.querySelector(selector) : null;
+            if (!target) return;
+            const headerOffset = (navElement?.offsetHeight || 0) + 10;
+            const extraOffset = selector === '#instagram' ? -180 : 0;
+            const targetPosition = target.getBoundingClientRect().top + window.scrollY - headerOffset - extraOffset;
+            smoothScrollTo(Math.max(targetPosition, 0), 850);
+        }
+
+        /* ── Inventario carrusel movil ── */
+        const invGrid = document.getElementById('inventoryGrid');
+        const invNav = document.getElementById('invCarouselNav');
+        const invDots = document.getElementById('invCarouselDots');
+        const CARDS_PER_PAGE = 4;
+        let invPage = 0;
+        let invTotalPages = 1;
+        let isMobileCarousel = false;
+
+        function getVisibleCards() {
+            return Array.from(cards).filter(c => c.dataset.filtered !== 'hide');
+        }
+
+        let invDirection = 'left';
+
+        function triggerSlideAnimation(dir) {
+            const cls = dir === 'left' ? 'inv-slide-left' : 'inv-slide-right';
+            invGrid.classList.remove('inv-slide-left', 'inv-slide-right');
+            void invGrid.offsetWidth; // force reflow
+            invGrid.classList.add(cls);
+            setTimeout(() => invGrid.classList.remove(cls), 400);
+        }
+
+        function updateInvCarousel(animate) {
+            const mobile = window.innerWidth <= 720;
+            const visible = getVisibleCards();
+            const prevBtn = invNav.querySelector('[data-inv-dir="prev"]');
+            const nextBtn = invNav.querySelector('[data-inv-dir="next"]');
+
+            if (mobile && visible.length > CARDS_PER_PAGE) {
+                isMobileCarousel = true;
+                invTotalPages = Math.ceil(visible.length / CARDS_PER_PAGE);
+                if (invPage >= invTotalPages) invPage = invTotalPages - 1;
+                if (invPage < 0) invPage = 0;
+                invNav.style.display = 'flex';
+
+                // Show/hide cards based on page
+                visible.forEach((card, i) => {
+                    const pageStart = invPage * CARDS_PER_PAGE;
+                    card.style.display = (i >= pageStart && i < pageStart + CARDS_PER_PAGE) ? 'flex' : 'none';
+                });
+                // Hide filtered-out cards
+                Array.from(cards).filter(c => c.dataset.filtered === 'hide').forEach(c => c.style.display = 'none');
+
+                // Animate if triggered by user action
+                if (animate) triggerSlideAnimation(invDirection);
+
+                // Disable buttons at boundaries
+                if (prevBtn) prevBtn.disabled = invPage === 0;
+                if (nextBtn) nextBtn.disabled = invPage === invTotalPages - 1;
+
+                // Update dots + counter
+                invDots.innerHTML = '';
+                for (let d = 0; d < invTotalPages; d++) {
+                    const dot = document.createElement('button');
+                    dot.className = 'inv-carousel-dot' + (d === invPage ? ' active' : '');
+                    dot.setAttribute('aria-label', 'Pagina ' + (d + 1));
+                    dot.addEventListener('click', () => {
+                        invDirection = d > invPage ? 'left' : 'right';
+                        invPage = d;
+                        updateInvCarousel(true);
+                    });
+                    invDots.appendChild(dot);
+                }
+                // Counter
+                let counter = invNav.querySelector('.inv-carousel-counter');
+                if (!counter) {
+                    counter = document.createElement('span');
+                    counter.className = 'inv-carousel-counter';
+                    invNav.appendChild(counter);
+                }
+                counter.textContent = (invPage + 1) + '/' + invTotalPages;
+            } else {
+                isMobileCarousel = false;
+                invNav.style.display = 'none';
+                visible.forEach(c => c.style.display = 'flex');
+                Array.from(cards).filter(c => c.dataset.filtered === 'hide').forEach(c => c.style.display = 'none');
+            }
+        }
+
+        document.querySelectorAll('[data-inv-dir]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const oldPage = invPage;
+                if (btn.dataset.invDir === 'prev') invPage = Math.max(0, invPage - 1);
+                else invPage = Math.min(invTotalPages - 1, invPage + 1);
+                if (oldPage !== invPage) {
+                    invDirection = btn.dataset.invDir === 'next' ? 'left' : 'right';
+                    updateInvCarousel(true);
+                }
+            });
+        });
+
+        // Swipe support for inventory carousel
+        let invTouchStartX = 0;
+        invGrid.addEventListener('touchstart', e => { invTouchStartX = e.touches[0].clientX; }, { passive: true });
+        invGrid.addEventListener('touchend', e => {
+            if (!isMobileCarousel) return;
+            const diff = invTouchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 40) {
+                const oldPage = invPage;
+                if (diff > 0) { invPage = Math.min(invTotalPages - 1, invPage + 1); invDirection = 'left'; }
+                else { invPage = Math.max(0, invPage - 1); invDirection = 'right'; }
+                if (oldPage !== invPage) updateInvCarousel(true);
+            }
+        }, { passive: true });
+
+        window.addEventListener('resize', () => { updateInvCarousel(); });
+
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filter = btn.dataset.filter;
+                cards.forEach(card => {
+                    const matches = filter === 'all' || card.dataset.category === filter;
+                    card.dataset.filtered = matches ? 'show' : 'hide';
+                    card.style.display = matches ? 'flex' : 'none';
+                });
+                invPage = 0;
+                updateInvCarousel();
+            });
+        });
+
+        // Initialize carousel state
+        cards.forEach(c => c.dataset.filtered = 'show');
+        updateInvCarousel();
+
+        function openModal(data) {
+            modalImage.src = data.image;
+            modalImage.alt = data.brand + ' ' + data.model;
+            modalTitle.textContent = `${data.brand} ${data.model} · ${data.year}`;
+            modalTagline.textContent = data.tagline || '';
+            modalMeta.innerHTML = `
+                <span>${data.km}</span>
+                <span>${data.transmission}</span>
+                <span>${data.category.toUpperCase()}</span>`;
+            modalLocation.textContent = data.location ? `Ubicacion: ${data.location}` : '';
+            modalLocation.style.display = data.location ? 'block' : 'none';
+            modalDescription.textContent = data.description || '';
+            modalPrice.textContent = data.price;
+            modalGallery.innerHTML = '';
+            if (Array.isArray(data.gallery) && data.gallery.length) {
+                modalGallery.style.display = 'grid';
+                data.gallery.forEach(url => {
+                    if (!url) return;
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = `${data.brand} ${data.model}`;
+                    modalGallery.appendChild(img);
+                });
+            } else {
+                modalGallery.style.display = 'none';
+            }
+            const shareUrl = `${window.location.origin}${window.location.pathname}#inventario`;
+            const message = `Hola, estoy interesado en este vehiculo ${data.brand} ${data.model}. Puedes verlo aqui: ${shareUrl}`;
+            modalWhatsApp.href = `https://wa.me/573127190990?text=${encodeURIComponent(message)}`;
+            backdrop.style.display = 'flex';
+        }
+
+        function closeModal() {
+            backdrop.style.display = 'none';
+        }
+
+        cards.forEach(card => {
+            card.querySelector('[data-action="modal"]').addEventListener('click', () => {
+                const data = JSON.parse(card.dataset.car);
+                openModal(data);
+            });
+        });
+
+        modalClose.addEventListener('click', closeModal);
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (event) => {
+                const href = link.getAttribute('href');
+                if (!href || href === '#') return;
+                event.preventDefault();
+                scrollToSelector(href);
+            });
+        });
+
+        scrollTriggers.forEach(trigger => {
+            trigger.addEventListener('click', (event) => {
+                const selector = trigger.dataset.scrollTo;
+                if (!selector) return;
+                event.preventDefault();
+                scrollToSelector(selector);
+            });
+        });
+
+        window.addEventListener('scroll', () => {
+            if (!backToTop) return;
+            backToTop.classList.toggle('visible', window.scrollY > 300);
+        });
+
+        backToTop?.addEventListener('click', () => {
+            smoothScrollTo(0);
+        });
+
+        if (logoutToastEl) {
+            requestAnimationFrame(() => {
+                logoutToastEl.classList.add('show');
+                setTimeout(() => {
+                    logoutToastEl.classList.remove('show');
+                }, 3600);
+            });
+        }
+
+        /* ── Hamburger toggle ── */
+        const navToggle = document.getElementById('navToggle');
+        const navLinksMenu = document.getElementById('navLinks');
+        const navActionsMenu = document.getElementById('navActions');
+
+        navToggle?.addEventListener('click', () => {
+            const isOpen = navToggle.classList.toggle('is-active');
+            navLinksMenu?.classList.toggle('is-open', isOpen);
+            navActionsMenu?.classList.toggle('is-open', isOpen);
+            navToggle.setAttribute('aria-expanded', isOpen);
+        });
+
+        /* Close mobile menu when a nav link is clicked */
+        navLinksMenu?.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 720) {
+                    navToggle?.classList.remove('is-active');
+                    navLinksMenu?.classList.remove('is-open');
+                    navActionsMenu?.classList.remove('is-open');
+                    navToggle?.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
