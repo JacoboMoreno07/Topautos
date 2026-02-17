@@ -1,0 +1,614 @@
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 17
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 18
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 19
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 20
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 21
+
+Warning: Cannot modify header information - headers already sent by (output started at C:\Xampp\htdocs\Jacobo\TopAutos\build_static.php:18) in C:\Xampp\htdocs\Jacobo\TopAutos\portal.php on line 22
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Top Autos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Unbounded:wght@600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --panel: rgba(32, 32, 32, 0.92);
+            --card: rgba(40, 40, 40, 0.95);
+            --text: #f4f4f0;
+            --muted: #a7a7a7;
+            --accent: #f7c948;
+            --accent-strong: #ff8c32;
+            --stroke: rgba(255,255,255,0.08);
+            --shadow: 0 20px 60px rgba(0,0,0,0.45);
+        }
+        html { scroll-behavior: smooth; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top, #3a3a3a 0%, var(--bg) 55%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+            font-weight: 700;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'HK Grotesk', 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-style: italic;
+        }
+        a { color: inherit; }
+        .portal-shell {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            padding: clamp(1.5rem, 4vw, 3rem);
+            box-shadow: var(--shadow);
+        }
+        /* Fuerza aristas cuadradas en todo el portal */
+        .portal-shell,
+        .card,
+        .toast,
+        .car-tile,
+        .modal,
+        .edit-preview,
+        .preview-main figure,
+        .preview-gallery img,
+        input,
+        textarea,
+        select,
+        button,
+        .pill-btn {
+            border-radius: 0;
+        }
+        header.portal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        header.portal-head h1 {
+            margin: 0;
+            text-transform: uppercase;
+            display: inline-block;
+            padding: 0.4rem 0.85rem;
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            background: inherit;
+        }
+        .back-link {
+            padding: 0.75rem 1.6rem;
+            border-radius: 0;
+            border: 1px solid var(--stroke);
+            text-transform: uppercase;
+            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        .messages {
+            margin-bottom: 1rem;
+        }
+        .messages .alert {
+            padding: 0.85rem 1rem;
+            border-radius: 0;
+            margin-bottom: 0.6rem;
+        }
+        .alert.error { background: rgba(255, 76, 76, 0.15); color: #ffb8b8; }
+        .alert.success { background: rgba(70, 189, 120, 0.18); color: #9df5c5; }
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            padding: 1.8rem;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+        input, textarea, select {
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            padding: 0.8rem 0.95rem;
+            color: var(--text);
+            font-family: inherit;
+            font-weight: 700;
+        }
+        select {
+            appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+                linear-gradient(135deg, var(--accent) 50%, transparent 50%),
+                linear-gradient(120deg, rgba(247,201,72,0.12), rgba(255,140,50,0.18));
+            background-position:
+                calc(100% - 1.35rem) calc(50% - 0.25rem),
+                calc(100% - 1rem) calc(50% - 0.25rem),
+                100% 0;
+            background-size: 9px 9px, 9px 9px, auto;
+            background-repeat: no-repeat;
+            padding-right: 2.6rem;
+        }
+        select option {
+            background: #0f0f0f;
+            color: var(--text);
+        }
+        input[type="file"] {
+            padding: 0.55rem 0.75rem;
+            color: var(--text);
+            cursor: pointer;
+        }
+        input[type="file"]::file-selector-button {
+            margin-right: 0.75rem;
+            border: 1px solid var(--stroke);
+            background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+            color: #050505;
+            padding: 0.45rem 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        textarea { min-height: 110px; }
+        button, .pill-btn {
+            border: none;
+            cursor: pointer;
+            border-radius: 0;
+            padding: 1.05rem 2rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+            color: #050505;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        button:hover, .pill-btn:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 20px 35px rgba(0,0,0,0.4);
+        }
+        .dropzone {
+            position: relative;
+            border: 1px dashed rgba(255,255,255,0.35);
+            padding: 1rem;
+            text-align: center;
+            color: var(--muted);
+            background: rgba(255,255,255,0.02);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+        .dropzone strong {
+            color: var(--text);
+        }
+        .dropzone.is-dragover {
+            border-color: var(--accent);
+            background: rgba(247,201,72,0.12);
+            color: var(--text);
+        }
+        .dropzone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .replace-toggle {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--stroke);
+            padding: 0.7rem 1rem;
+        }
+        .replace-toggle.is-active {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .danger-btn {
+            background: #b71c1c;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.2rem;
+            align-items: start;
+        }
+        label span {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .logout-form {
+            margin-left: auto;
+        }
+        .feed-section { margin-top: 2.5rem; }
+        .cars-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1.2rem;
+            grid-auto-rows: 1fr;
+        }
+        .car-tile {
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            border-radius: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.4);
+        }
+        .car-tile figure {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #0c0c0c;
+        }
+        .car-tile figure img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .car-tile-body {
+            padding: 0.95rem 1rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .car-tile h4 {
+            font-size: 1.05rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+        }
+        .car-tile h4 span { color: var(--muted); font-style: italic; }
+        .tile-price { color: var(--accent); letter-spacing: 0.03em; }
+        .tile-meta { color: var(--muted); font-size: 0.9rem; }
+        .tile-actions { margin-top: 0.4rem; }
+        .tile-actions .pill-btn {
+            width: 100%;
+            text-align: center;
+            padding: 0.9rem 1rem;
+        }
+        .editing-title {
+            font-size: 1.6rem;
+            margin: 0 0 0.35rem;
+            font-style: italic;
+        }
+        .editing-sub {
+            font-size: 1rem;
+            color: var(--muted);
+            margin: 0 0 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .edit-preview {
+            margin-top: 0.75rem;
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            padding: 0.75rem;
+            display: grid;
+            grid-template-columns: minmax(180px, 0.9fr) minmax(210px, 1.1fr);
+            column-gap: 1.75rem;
+            row-gap: 0.65rem;
+            align-items: start;
+            justify-items: start;
+        }
+        .preview-main {
+            width: 100%;
+            max-width: 380px;
+        }
+        .preview-main figure {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 160px;
+            background: #0c0c0c;
+            border: 1px solid var(--stroke);
+            overflow: hidden;
+        }
+        .preview-main img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .preview-gallery {
+            min-width: 260px;
+        }
+        .preview-gallery .thumb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 0.3rem;
+        }
+        .preview-gallery.collage .thumb-grid {
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        }
+        .preview-gallery img {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border: 1px solid var(--stroke);
+            background: #0c0c0c;
+        }
+        .preview-gallery { padding-left: 0.4rem; }
+        .tagline-small {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
+        }
+        .schema-alert {
+            background: rgba(255, 146, 63, 0.18);
+            color: #ffd2a4;
+            border-radius: 0;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .toast {
+            position: fixed;
+            right: 1.4rem;
+            bottom: 1.4rem;
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            padding: 0.85rem 1.1rem;
+            border-radius: 0;
+            color: var(--text);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            z-index: 2000;
+            font-weight: 700;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5,5,5,0.82);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 2500;
+        }
+        .confirm-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .confirm-modal {
+            width: min(480px, 92vw);
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            box-shadow: var(--shadow);
+            padding: 1.6rem;
+            display: grid;
+            gap: 0.9rem;
+        }
+        .confirm-modal h3 {
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .confirm-actions .ghost-btn {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--stroke);
+        }
+        @media (max-width: 1100px) {
+            .cars-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+            .cars-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+            body { padding: 1rem; }
+            .cars-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            .cars-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-shell">
+        <header class="portal-head">
+            <h1>Portal</h1>
+            <a class="back-link" href="index.html">← Volver al sitio</a>
+        </header>
+
+        <div class="messages">
+                                </div>
+
+        
+                    <div class="dashboard-head" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+                <p>Hola, TopAutos2026. Gestiona tu inventario con el look Top Autos.</p>
+                <form method="post" onsubmit="alert('Esta es una vista previa. Las funciones del portal requieren el servidor PHP.');return false;" class="logout-form">
+                    <input type="hidden" name="_csrf" value="b630711055dd53fe901945148469843ddc0b29703b83738406638df30b332794">
+                    <button type="submit" name="logout">Cerrar sesion</button>
+                </form>
+            </div>
+
+                            <div class="schema-alert">Conecta la base de datos en <code>config.php</code> para comenzar.</div>
+            
+            <section class="card" style="margin-bottom:1.5rem;">
+                                    <h2>Crear vehiculo</h2>
+                                <form method="post" onsubmit="alert('Esta es una vista previa. Las funciones del portal requieren el servidor PHP.');return false;" enctype="multipart/form-data" id="editCarForm">
+                    <input type="hidden" name="_csrf" value="b630711055dd53fe901945148469843ddc0b29703b83738406638df30b332794">
+                                        <div class="form-grid">
+                        <label><span>Marca</span><input type="text" name="brand" value="" required></label>
+                        <label><span>Modelo</span><input type="text" name="model" value="" required></label>
+                        <label><span>Precio</span><input type="text" name="price" value="" placeholder="$81.900.000" required></label>
+                        <label><span>Tagline</span><input type="text" name="tagline" value="" placeholder="Frase de impacto"></label>
+                        <label><span>Categoria</span>
+                            <select name="category" required>
+                                <option value="">Selecciona</option>
+                                <option value="suv" >SUV</option>
+                                <option value="sedan" >Sedan</option>
+                                <option value="pickup" >Pickup</option>
+                                <option value="deportivo" >Deportivo</option>
+                            </select>
+                        </label>
+                        <label><span>Año</span><input type="text" name="year" value="" placeholder="2022" required></label>
+                        <label><span>Kilometraje</span><input type="text" name="km" value="" placeholder="38.200 km"></label>
+                        <label><span>Transmision</span><input type="text" name="transmission" value="" placeholder="Automatica"></label>
+                        <label><span>Ubicacion</span><input type="text" name="location" value="" placeholder="El Poblado, Medellin" required></label>
+                    </div>
+                    <label><span>Descripcion</span><textarea name="description" placeholder="Incluye highlights, garantias, estados..."></textarea></label>
+                    <div class="form-grid">
+                        <div>
+                            <span>Imagen destacada</span>
+                            <div class="dropzone" data-dropzone data-target="featured_image">
+                                <strong>Arrastra y suelta</strong> o haz clic para subir la imagen destacada.
+                                <input type="file" id="featured_image" name="featured_image" accept="image/*" required>
+                            </div>
+                        </div>
+                        <div>
+                            <span>Galeria (sube hasta 12 fotos)</span>
+                            <div class="dropzone" data-dropzone data-target="gallery_input">
+                                <strong>Arrastra y suelta</strong> o haz clic para agregar fotos a la galeria.
+                                <input type="file" id="gallery_input" name="gallery[]" accept="image/*" multiple>
+                            </div>
+                        </div>
+                    </div>
+                                        <button type="submit" name="create_product">Publicar vehiculo</button>
+                </form>
+
+                
+                            </section>
+
+            <section class="card feed-section">
+                <h2>Ultimos cargues</h2>
+                                    <p>Aun no hay vehiculos registrados.</p>
+                            </section>
+            </div>
+
+    <div class="confirm-overlay" id="deleteConfirm" aria-hidden="true">
+        <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" aria-describedby="deleteDesc">
+            <h3 id="deleteTitle">Eliminar vehiculo</h3>
+            <p id="deleteDesc">¿Seguro que quieres eliminar este vehiculo? Esta accion no se puede deshacer.</p>
+            <div class="confirm-actions">
+                <button type="button" class="ghost-btn" data-confirm="cancel">Cancelar</button>
+                <button type="button" class="danger-btn" data-confirm="ok">Si, eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('[data-dropzone]').forEach(zone => {
+            const inputId = zone.getAttribute('data-target');
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            zone.addEventListener('click', (e) => {
+                if (e.target === input) return;
+                input.click();
+            });
+            zone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                zone.classList.add('is-dragover');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
+            zone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                zone.classList.remove('is-dragover');
+                if (event.dataTransfer?.files?.length) {
+                    input.files = event.dataTransfer.files;
+                    const name = event.dataTransfer.files.length > 1
+                        ? `${event.dataTransfer.files.length} archivos seleccionados`
+                        : event.dataTransfer.files[0].name;
+                    zone.setAttribute('data-selected', name);
+                }
+            });
+            input.addEventListener('change', () => {
+                if (input.files?.length) {
+                    const name = input.files.length > 1
+                        ? `${input.files.length} archivos seleccionados`
+                        : input.files[0].name;
+                    zone.setAttribute('data-selected', name);
+                }
+            });
+        });
+
+        const replaceToggle = document.querySelector('[data-replace-toggle]');
+        const replaceInput = document.getElementById('replaceGalleryInput');
+        replaceToggle?.addEventListener('click', () => {
+            const isActive = replaceToggle.classList.toggle('is-active');
+            if (replaceInput) {
+                replaceInput.value = isActive ? '1' : '0';
+            }
+        });
+
+        const deleteOverlay = document.getElementById('deleteConfirm');
+        let pendingDeleteForm = null;
+
+        document.querySelectorAll('.delete-product-form').forEach(form => {
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                pendingDeleteForm = form;
+                deleteOverlay?.classList.add('show');
+                deleteOverlay?.setAttribute('aria-hidden', 'false');
+            });
+        });
+
+        deleteOverlay?.addEventListener('click', (event) => {
+            if (event.target === deleteOverlay) {
+                deleteOverlay.classList.remove('show');
+                deleteOverlay.setAttribute('aria-hidden', 'true');
+                pendingDeleteForm = null;
+            }
+        });
+
+        document.querySelectorAll('[data-confirm="cancel"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                deleteOverlay?.classList.remove('show');
+                deleteOverlay?.setAttribute('aria-hidden', 'true');
+                pendingDeleteForm = null;
+            });
+        });
+
+        document.querySelectorAll('[data-confirm="ok"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (pendingDeleteForm) {
+                    pendingDeleteForm.submit();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
